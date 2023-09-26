@@ -18,7 +18,7 @@ namespace VeirficaFicheros
 
             //m_folderController.Load(Path.Combine(System.Environment.GetEnvironmentVariable("USERPROFILE"), "VerificaFicheros"));
             m_folderController.Load(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location));
-            FoldersListBox.ItemsSource = m_folderController.MonitorizedFolders;
+            FoldersListBox.ItemsSource = m_folderController.MonitoredFolders;
         }
 
         private void AddFolderButton_Click(object sender, RoutedEventArgs e)
@@ -30,7 +30,7 @@ namespace VeirficaFicheros
                 Log.Text = "Please be patient while folder is processed";
                 m_folderController.Add(dialog.SelectedPath);
                 FoldersListBox.ItemsSource = null;
-                FoldersListBox.ItemsSource = m_folderController.MonitorizedFolders;
+                FoldersListBox.ItemsSource = m_folderController.MonitoredFolders;
             }
         }
 
@@ -44,7 +44,7 @@ namespace VeirficaFicheros
             {
                 m_folderController.Delete(selected);
                 FoldersListBox.ItemsSource = null;
-                FoldersListBox.ItemsSource = m_folderController.MonitorizedFolders;
+                FoldersListBox.ItemsSource = m_folderController.MonitoredFolders;
                 DetailListBox.ItemsSource = null;
             }
         }
@@ -86,7 +86,7 @@ namespace VeirficaFicheros
         private void VerifyAllFolders_Click(object sender, RoutedEventArgs e)
         {
             var selected = FoldersListBox.SelectedItem;
-            foreach (var line in m_folderController.MonitorizedFolders)
+            foreach (var line in m_folderController.MonitoredFolders)
             {
                 m_folderController.Select(line);
                 m_folderController.Verify();

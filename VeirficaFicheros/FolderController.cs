@@ -5,33 +5,34 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using VeirficaFicheros.Properties;
 
 namespace VeirficaFicheros
 {
     class FolderController
     {
-        public List<string> MonitorizedFolders = new List<string>();
+        public List<string> MonitoredFolders = new List<string>();
         public List<Record> FilesNotMatching = new List<Record>();
 
         private const string m_databaseFileName = "zxFileList.txt";
-        private string m_FullPath, m_monitorizedFoldersList;
+        private string m_fullPath, m_monitoredFolderList;
 
         private string m_selectedFolder, m_selectedDatabaseFileName;
         public void Load(string basePath)
         {
-            m_FullPath = basePath;
-            if (!Directory.Exists(m_FullPath))
-                Directory.CreateDirectory(m_FullPath);
+            m_fullPath = basePath;
+            if (!Directory.Exists(m_fullPath))
+                Directory.CreateDirectory(m_fullPath);
 
-            m_monitorizedFoldersList = Path.Combine(m_FullPath, "MonitorizedFolders.txt");
+            m_monitoredFolderList = Path.Combine(m_fullPath, "MonitoredFolders.txt");
 
-            if (File.Exists(m_monitorizedFoldersList))
-                MonitorizedFolders = File.ReadAllLines(m_monitorizedFoldersList).ToList<string>();
+            if (File.Exists(m_monitoredFolderList))
+                MonitoredFolders = File.ReadAllLines(m_monitoredFolderList).ToList<string>();
         }
 
         public void Add(string path)
         {
-            MonitorizedFolders.Add(path);
+            MonitoredFolders.Add(path);
             SaveFolderList();
             
             Select(path);
@@ -53,9 +54,9 @@ namespace VeirficaFicheros
             if (File.Exists(detailFile))
                 File.Delete(detailFile);
 
-            var found = MonitorizedFolders.IndexOf(path);
+            var found = MonitoredFolders.IndexOf(path);
             if (found != -1)
-                MonitorizedFolders.RemoveAt(found);
+                MonitoredFolders.RemoveAt(found);
 
             SaveFolderList();
         }
@@ -67,13 +68,11 @@ namespace VeirficaFicheros
             Create(m_selectedFolder, true);
 
             var detailFile = Path.Combine(m_selectedFolder, m_databaseFileName);
-            var lines = new string[0];
+            var lines = Array.Empty<String>();
             if (File.Exists(detailFile))
                 lines = File.ReadAllLines(detailFile);
 
-            var savedItems = new List<Record>();
-            foreach (var line in lines)
-                savedItems.Add(Record.FromString(line));
+            var savedItems = lines.Select(Record.FromString).ToList();
 
             var exceptInSaved = savedItems.Except(m_records).ToList();
             var exceptInReal = m_records.Except(savedItems).ToList();
@@ -90,16 +89,9 @@ namespace VeirficaFicheros
             FilesNotMatching.AddRange(exceptInSaved);
 
             //Now, if someone does not match
-            foreach (var item in m_records)
+            foreach (var item in from item in m_records let storedRecord = savedItems.FirstOrDefault(r => r.Name == item.Name) where storedRecord != null where item.Size != storedRecord.Size select item)
             {
-                var storedRecord = savedItems.FirstOrDefault(r => r.Name == item.Name);
-                if (storedRecord != null)
-                {
-                    if (item.Size != storedRecord.Size)
-                    {
-                        FilesNotMatching.Add(new Record { Name = item.Name, Size = item.Size, What = "SizeChanged" });
-                    }
-                }
+                FilesNotMatching.Add(new Record { Name = item.Name, Size = item.Size, What = "SizeChanged" });
             }
         }
 
@@ -121,7 +113,7 @@ namespace VeirficaFicheros
                         {
                             r.What = "Ok";
                             r.Size = info.Length;
-                            File.AppendAllText(Path.Combine(m_selectedFolder, m_databaseFileName), r.ToString() + Environment.NewLine);
+                            File.AppendAllText(Path.Combine(m_selectedFolder, m_databaseFileName), r + Environment.NewLine);
                             m_records.Add(r);
                             removeFromList = true;
                         }
@@ -159,14 +151,12 @@ namespace VeirficaFicheros
 
         private void SaveFolderList()
         {
-            File.WriteAllLines(m_monitorizedFoldersList, MonitorizedFolders);
+            File.WriteAllLines(m_monitoredFolderList, MonitoredFolders);
         }
 
         private void SaveDetailFileList()
         {
-            var lines = new List<string>();
-            foreach (var item in m_records)
-                lines.Add(item.ToString());
+            var lines = m_records.Select(item => item.ToString()).ToList();
 
             File.WriteAllLines(m_selectedDatabaseFileName, lines);
         }
@@ -192,10 +182,8 @@ namespace VeirficaFicheros
 
             public override int GetHashCode()
             {
-                if (Name == null)
-                    return 0;
-
-                return Name.GetHashCode();
+                // ReSharper disable once NonReadonlyMemberInGetHashCode
+                return Name == null ? 0 : Name.GetHashCode();
             }
 
             public static Record FromString(string record)
@@ -213,7 +201,7 @@ namespace VeirficaFicheros
                 return r;
             }
         }
-        private List<Record> m_records = new List<Record>();
+        private readonly List<Record> m_records = new List<Record>();
         private void Create(string path, bool doNotSave)
         {
             m_records.Clear();
@@ -259,7 +247,7 @@ namespace VeirficaFicheros
             }
             catch (System.Exception e)
             {
-                Console.WriteLine("An exception happened: " + e.Message);
+                Console.WriteLine(Resources.FolderController_RecursiveLoad_An_exception_happened__ + e.Message);
             }
         }
 
@@ -270,7 +258,7 @@ namespace VeirficaFicheros
             return Uri.UnescapeDataString(referenceUri.MakeRelativeUri(fileUri).ToString()).Replace('/', Path.DirectorySeparatorChar);
         }
 
-        private bool IsIgnoredName(string filePathName)
+        private static bool IsIgnoredName(string filePathName)
         {
             var fileName = Path.GetFileName(filePathName);
             return fileName.StartsWith(".") || fileName.StartsWith("$") || fileName == m_databaseFileName;
